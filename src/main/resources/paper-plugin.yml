@@ -1,0 +1,6 @@
+name: CustomCommand
+version: '1.0'
+main: org.lyc122.dev.customCommand.CustomCommand
+api-version: '1.21'
+prefix: Transporter
+load: STARTUP
