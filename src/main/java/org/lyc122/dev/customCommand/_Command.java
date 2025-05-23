@@ -2,107 +2,68 @@ package org.lyc122.dev.customCommand;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.*;
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 
 public class _Command extends Command {
-    Vector<String> sCommands;
-    public _Command(Plugin plugin,String CommandName, String usage, String description) throws FileNotFoundException {
-        super(CommandName, description, usage, new ArrayList<>());
-        try {
-            Scanner config = new Scanner(
-                    new File(
-                            plugin.getDataFolder() + "/commands/",
-                            CommandName + ".cmd_cfg"
-                    )
-            );
-            int line_number = 0;
-            while(config.hasNextLine()){
-                line_number++;
-                String line = config.nextLine();
-                char[] linea = line.toCharArray();
-                if(linea[0] == '#');//do nothing to the text if it's just some comments
-                else{
-                    String[] args = line.split(" ");
-//                    if(Objects.equals(args[0], "Description")){
-//                        int pos=0;
-//                        do{
-//                            ++pos;
-//                        }while(linea[pos] != ':');
-//                        do{
-//                            ++pos;
-//                        }while(linea[pos] != ' ');
-//                        StringBuilder desc = new StringBuilder();
-//                        for(int i = pos; i <= linea.length; i++){
-//                            desc.append(linea[i]);
-//                        }
-//                        HasDescription = true;
-//                        description = "";
-//                        description = desc.toString();
-//                    }
-//                    else if(Objects.equals(args[0], "Usage")){
-//                        int pos=0;
-//                        do{
-//                            ++pos;
-//                        }while(linea[pos] != ':');
-//                        do{
-//                            ++pos;
-//                        }while(linea[pos] != ' ');
-//                        StringBuilder usages = new StringBuilder();
-//                        for(int i = pos; i <= linea.length; i++){
-//                            usages.append(linea[i]);
-//                        }
-//                        HasUsage = true;
-//                        usage = usages.toString();
-//                    }
-                    if(!Objects.equals(args[0], "SERVER_COMMAND")&&!Objects.equals(args[0], "CUSTOM_COMMAND")){
-                        throw new InvalidConfigurationException("""
-                                There is an unexpected identifier in your configuration file.
-                                File : %FILE%
-                                Line : %LINE%
-                                Unexpected identifier : %UID%
-                                This must be one in these two:
-                                SERVER_COMMAND : For server command
-                                CUSTOM_COMMAND : For the command you registered.
-                                Then, it's just some boring stack tracks...
-                                
-                                """
-                                .replaceAll("%FILE%", CommandName+".cmd_cfg")
-                                .replaceAll("%LINE%",String.valueOf(line_number))
-                        );
-                    }
-                    sCommands.add(line);
-                }
+    File config;
+    boolean isNew = false;
+    List<String> perm;
+    /**
+     *
+     * @param name Command's name
+     * @param description The description of the command
+     * @param usageMessage The message displayed on the usage screen
+     * @param aliases Aliases
+     * @param config_file The configuration file of this command.
+     *                    If it is == null, then it will be replaced with plugin.getDataFolder()+"/command/"+name+".cfg".
+
+     */
+
+    protected _Command(@NotNull JavaPlugin plugin, @NotNull String name, @NotNull String description, @NotNull String usageMessage, @NotNull List<String> aliases, @Nullable File config_file, @NotNull List<String> permissions) throws IOException {
+        super(name, description, usageMessage, aliases);
+        config = Objects.requireNonNullElseGet(config_file, () -> new File(plugin.getDataFolder() + "/command/" + name + ".cfg"));
+        if(! config.exists()){
+            isNew = true;
+            try{
+                config.createNewFile();
+            }
+            catch(IOException e){
+                throw new IOException("""
+                        at _Command -> init
+                        Affected command: %cmd%
+                        Error: We can't find the configuration file of the command, and we can't create it,too!
+                        File: %file%
+                        Path: %path%
+                        Line: *
+                        Due to this: This command will NOT be loaded.
+                        Solution: Check if you have the permission to create a new file. Or find your Administrator for help.
+                        """);
             }
         }
-        catch (FileNotFoundException e){
-            throw new FileNotFoundException("""
-                    We got an exception when loading the configuration of one of your commands.
-                    Exception : FileNotFoundException
-                    Description : Please check if your command hadn't get a configuration file.
-                    File : %FILE%
-                    Line : *
-                    Please check if there is a config file named with your command's name in the folder:
-                    /plugins/CustomCommand/commands/
-                    or this command will NOT be loaded!
-                    Raw error message:
-                    %RAW_MESSAGE%
-                    """
-                    .replaceAll("%FILE",plugin.getDataFolder()+"/command/"+ CommandName +".cmd_cfg")
-                    .replaceAll("%RAW_MESSAGE%",e.getLocalizedMessage())
-            );
-        }
-    }
-    protected _Command(@NotNull String name, @NotNull String description, @NotNull String usageMessage, @NotNull List<String> aliases) {
-        super(name, description, usageMessage, aliases);
+        perm = permissions;
     }
 
     @Override
-    public boolean execute(@NotNull CommandSender commandSender, @NotNull String cmd, @NotNull String @NotNull [] args) {
-        return false;
+    public boolean execute(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String @NotNull [] strings) {
+        boolean PermissionCheckFailed = false;
+        for(String permission : perm){
+            if(!commandSender.hasPermission(permission)){
+                commandSender.sendMessage(
+                        """
+                        Error when executing command:
+                        you don't have permission needed: %perm%
+                        """
+                        .replaceAll("%perm%",permission));
+                PermissionCheckFailed = true;
+            }
+        }
+        return true;
     }
 }
